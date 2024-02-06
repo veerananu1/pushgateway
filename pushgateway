@@ -1,0 +1,23 @@
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Gauge;
+import io.prometheus.client.exporter.PushGateway;
+
+public class PushGatewayExample {
+    public static void main(String[] args) throws Exception {
+        // Create a CollectorRegistry to register metrics
+        CollectorRegistry registry = new CollectorRegistry();
+
+        // Create a Gauge metric
+        Gauge myGauge = Gauge.build()
+                .name("my_batch_job_duration_seconds")
+                .help("Duration of my batch job in seconds.")
+                .register(registry);
+
+        // Simulate some work and update the metric
+        myGauge.set(5.2);  // Set the gauge value to 5.2 seconds
+
+        // Push metrics to Pushgateway
+        PushGateway pg = new PushGateway("localhost:9091");  // Replace with your Pushgateway URL
+        pg.pushAdd(registry, "my_job");  // Group metrics under the job name "my_job"
+    }
+}
