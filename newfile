@@ -1,0 +1,226 @@
+Explanation of Key Methods:
+
+validate(PhoneForensicsValidation validation) (continued):
+
+Logs a debug message to indicate the start of validation.
+Initiates an asynchronous operation (CompletableFuture) to get the member's phone numbers from the contactPointsService using getPhones(validation.getMemberGuid()).
+Calls getCallsDataFromCache(validation) to attempt retrieving cached data for the user.
+If no cached data is found:
+Sets the validation status to "NOT_AVAILABLE" and logs a message.
+If the CallsResponse object is missing required fields (countryCode or callingNumberAni):
+Sets the validation status to "NOT_AVAILABLE" and logs a message.
+Otherwise:
+Extracts the relevant data from the CallsResponse object and maps it into the validation object using a lambda expression.
+Logs a warning if the CallsState is unknown.
+Checks if the CallsState is green or if the trust indicator exceeds a threshold (clientConfig.getTrustThreshold()):
+If so, fetches core customer data using the CompletableFuture object and determines if the phone number is on file.
+Handles exceptions from the core customer call.
+Sets the validation status, trust indicator, and trust threshold values in the validation object and logs information.
+Returns the updated PhoneForensicsValidation object.
+getCallsDataFromCache(PhoneForensicsValidation validation):
+
+Logs a debug message to indicate cache retrieval.
+Sets up a Retry object to attempt retrieving data from the cache up to 4 times with a 150ms wait between retries. This handles cases where the cache might be temporarily empty.
+Uses the getEventPublisher.onRetryEvent method (likely for logging or handling retry events).
+Attempts to retrieve the TrustidAuthLogEntity object from the cache using the `callsCache
+profile picture
+I didn't understand these part:
+
+If no cached data is found:
+Sets the validation status to "NOT_AVAILABLE" and logs a message.
+If the CallsResponse object is missing required fields (countryCode or callingNumberAni):
+Sets the validation status to "NOT_AVAILABLE" and logs a message.
+Otherwise:
+Extracts the relevant data from the CallsResponse object and maps it into the validation object using a lambda expression.
+Logs a warning if the CallsState is unknown.
+Checks if the CallsState is green or if the trust indicator exceeds a threshold (clientConfig.getTrustThreshold()):
+If so, fetches core customer data using the CompletableFuture object and determines if the phone number is on file.
+Handles exceptions from the core customer call.
+Sets the validation status, trust indicator, and trust threshold values in the validation object and logs information.
+Returns the updated PhoneForensicsValidation object.
+Here's a breakdown of the specific parts you mentioned, focusing on clarity and conciseness:
+
+1. Handling Missing Cached Data:
+
+The code checks if any data is retrieved from the cache using getCallsDataFromCache(validation).
+If no data is found:
+It sets the validation object's status to "NOT_AVAILABLE," indicating the absence of information from the cache.
+It logs a message, likely for debugging or informational purposes, stating that no data was found.
+2. Handling Missing Required Fields:
+
+The code checks if the retrieved CallsResponse object (containing call data) has two essential fields:
+countryCode: The country code associated with the phone number.
+callingNumberAni: The calling phone number.
+If either field is missing:
+It sets the validation object's status to "NOT_AVAILABLE," indicating invalid or incomplete data.
+It logs a message, likely stating that required fields are missing in the response.
+3. Processing Valid Cached Data:
+
+If the call data is valid (has required fields):
+The code extracts relevant information from the CallsResponse object.
+It uses a lambda expression (a concise way to write a small anonymous function) to map this extracted data into the validation object, updating it with the call details.
+If the CallsState (a field indicating the call's validity) is unknown, it logs a warning.
+4. Checking Trustworthiness:
+
+The code checks two factors to assess the call's trustworthiness:
+CallsState: If it's green (likely valid), or
+Trust Indicator: If it exceeds a threshold defined in the clientConfig.getTrustThreshold() method (likely indicating a higher level of trust).
+If either condition is met:
+It uses the previously obtained CompletableFuture object (representing asynchronous retrieval of core customer data) to get the user's phone numbers.
+It further checks if those phone numbers match the calling number.
+In case of any exceptions during core customer data retrieval, it handles them appropriately (e.g., logging errors).
+5. Returning the Validation Result:
+
+Finally, the code sets the final validation status, trust indicator, and trust threshold values in the validation object.
+It logs information about the validation outcome.
+The updated PhoneForensicsValidation object is returned, containing the combined results of cache check, call data analysis, and (potentially) core customer data comparison.
+I hope this explanation provides a clearer understanding of these specific code segments!
+
+profile picture
+when it use core customer data
+The code uses core customer data only when certain conditions are met:
+
+Valid call data (with country code and calling number) is found in the cache.
+Either the call state is "green" (likely valid) or the trust indicator exceeds a threshold.
+In this situation, the code performs the following actions:
+
+It uses a CompletableFuture object to asynchronously retrieve core customer data, likely containing phone numbers associated with the user.
+It then checks if the retrieved phone numbers from the core customer system match the calling number from the call data.
+This comparison helps to determine if the caller is a legitimate customer. Matching phone numbers might indicate a higher level of trust in the call's validity.
+
+Key points to remember:
+
+Core customer data is not accessed in every validation instance. It's only used when specific criteria from the call data suggest further verification might be needed.
+The code likely retrieves core customer data securely and handles potential exceptions gracefully.
+I hope this clarifies the specific scenario where core customer data is used in the code.
+
+profile picture
+Here's a breakdown of the specific parts you mentioned, focusing on clarity and conciseness:
+1. Handling Missing Cached Data:
+The code checks if any data is retrieved from the cache using getCallsDataFromCache(validation).
+If no data is found:
+It sets the validation object's status to "NOT_AVAILABLE," indicating the absence of information from the cache.
+It logs a message, likely for debugging or informational purposes, stating that no data was found.
+2. Handling Missing Required Fields:
+The code checks if the retrieved CallsResponse object (containing call data) has two essential fields:
+countryCode: The country code associated with the phone number.
+callingNumberAni: The calling phone number.
+If either field is missing:
+It sets the validation object's status to "NOT_AVAILABLE," indicating invalid or incomplete data.
+It logs a message, likely stating that required fields are missing in the response.
+3. Processing Valid Cached Data:
+If the call data is valid (has required fields):
+The code extracts relevant information from the CallsResponse object.
+It uses a lambda expression (a concise way to write a small anonymous function) to map this extracted data into the validation object, updating it with the call details.
+If the CallsState (a field indicating the call's validity) is unknown, it logs a warning.
+4. Checking Trustworthiness:
+The code checks two factors to assess the call's trustworthiness:
+CallsState: If it's green (likely valid), or
+Trust Indicator: If it exceeds a threshold defined in the clientConfig.getTrustThreshold() method (likely indicating a higher level of trust).
+If either condition is met:
+It uses the previously obtained CompletableFuture object (representing asynchronous retrieval of core customer data) to get the user's phone numbers.
+It further checks if those phone numbers match the calling number.
+In case of any exceptions during core customer data retrieval, it handles them appropriately (e.g., logging errors).
+5. Returning the Validation Result:
+Finally, the code sets the final validation status, trust indicator, and trust threshold values in the validation object.
+It logs information about the validation outcome.
+The updated PhoneForensicsValidation object is returned, containing the combined results of cache check, call data analysis, and (potentially) core customer data comparison.
+
+how to setup an slo for  operation all that operation done when they are calling /validation
+Here's how you can set up an SLO (Service Level Objective) for the /validation operation in the code you provided:
+
+1. Define Metrics:
+
+Identify relevant metrics that capture the performance/success of the /validation operation. These could be:
+Latency: Average time taken to complete a /validation request.
+Error Rate: Percentage of /validation requests that result in errors (e.g., HTTP status codes outside the 2xx range).
+Success Rate: Percentage of /validation requests that complete successfully.
+Cache Hit Rate: Percentage of /validation requests served from the cache.
+2. Set Targets:
+
+Determine acceptable values for each metric based on user experience, business requirements, and resource constraints. For example:
+Latency target: Less than 200 milliseconds (ms).
+Error rate target: Less than 1%.
+Success rate target: 99.9%.
+Cache hit rate target: 80%.
+3. Establish Error Budget:
+
+Allocate a total error budget, representing the acceptable amount of deviation from the defined targets. This budget can be divided across various metrics based on their relative importance.
+For example, you could allocate 50% of the budget to the error rate and 25% each to latency and success rate.
+4. Implement Monitoring and Alerting:
+
+Set up monitoring tools to capture the chosen metrics continuously.
+Configure alerts to notify relevant teams when any metric falls below its target or exceeds its allocated portion of the error budget. This enables timely intervention and troubleshooting.
+5. Track and Review:
+
+Regularly monitor the performance of the /validation operation through dashboards, reports, and alerts.
+Analyze trends and identify areas for improvement.
+Review and adjust SLO targets and error budgets periodically based on user feedback, business needs, and system performance data.
+Additional Considerations:
+
+Timeframe: Define the timeframe (e.g., hourly, daily, weekly) over which the SLO applies.
+Seasonality: Account for potential seasonal fluctuations in traffic when setting targets and error budgets.
+Monitoring granularity: Break down your metrics by relevant dimensions (e.g., user type, device type) for deeper insights.
+Remember, setting up an effective SLO involves a continuous process of defining, monitoring, and improving the performance of your service. By following these steps and continuously refining your approach, you can ensure a reliable and high-quality experience for users of the /validation operation.
+
+
+
+
+Here's a simplified explanation of how to set up an SLO for the /validation operation:
+
+1. What is an SLO?
+
+Think of it as a promise you make to your users about the performance of the /validation operation. It defines what you want to achieve and how well you expect the system to perform.
+
+2. Steps to Set Up an SLO:
+
+Pick the right metrics: These are measurements that tell you how well the /validation operation is doing. Examples include:
+How long it takes to complete a request (latency)
+How often it fails (error rate)
+How often it succeeds (success rate)
+Set goals for each metric: This is what you want to achieve. Aim for realistic targets that balance user experience and system capabilities. For example, a latency goal could be under 2 seconds.
+Allocate an error budget: This is like a "spending limit" for how much you can deviate from your goals. Imagine having points for meeting your targets and losing points when you fall below them.
+Monitor and alert: Track how the operation performs over time and get notified when things go wrong. This helps you fix problems quickly and stay on track.
+Review and improve: Regularly check how well you're meeting your SLO and adjust your goals and budgets if needed. This is an ongoing process to keep your system performing its best.
+3. Remember:
+
+This is a guide, you'll need to customize it for your specific needs and context.
+Consider factors like user expectations, system capabilities, and overall business goals.
+Setting up an SLO is an ongoing process, so be prepared to adapt and improve over time.
+By following these steps and thinking about your users' needs, you can create a meaningful SLO for the /validation operation and ensure it meets expectations.
+
+
+Here's a breakdown of the process in plain language:
+
+1. Checking for Cached Data:
+
+The code first looks for previously stored information ("cached data") that might be relevant.
+If no cached data is found, it sets the validation status to "NOT_AVAILABLE" and makes a note of it in the logs.
+2. Examining Response Data:
+
+If there's cached data, it examines a specific object called CallsResponse.
+If this object is missing crucial fields like countryCode or callingNumberAni, it again sets the validation status to "NOT_AVAILABLE" and logs a message.
+3. Processing Valid Data:
+
+If the CallsResponse has the necessary fields, the code extracts the relevant information from it.
+It transfers this information into a separate object called validation using a concise coding technique (a lambda expression).
+It logs a warning if the CallsState (which is likely a status indicator for calls) is unknown.
+4. Making a Decision:
+
+The code checks if the CallsState is "green" or if a "trust indicator" is above a certain level (defined as clientConfig.getTrustThreshold()).
+If either of these conditions is met, it calls another function to get additional customer data.
+5. Fetching Core Customer Data:
+
+If extra customer data is needed, it's fetched using a specific tool called CompletableFuture.
+The code determines whether the phone number they're investigating is registered in this customer data.
+Any errors that occur during this retrieval are handled appropriately.
+6. Updating Validation Object:
+
+The code updates the validation object with:
+The final validation status
+The trust indicator value
+The trust threshold value
+It also logs information about these values for later reference.
+7. Returning Result:
+
+Finally, the updated PhoneForensicsValidation object, containing all the gathered information, is sent back as the result of this process.
