@@ -1,0 +1,14 @@
+graph LR
+post --> rectId["`/event`"] --> B{Parse and Validate}
+B --> C{Cache Error?}
+C -->|No| D[Send to Cache]
+C -->|Yes| E[Log Error]
+B --> F{Kafka Error?}
+F -->|No| G[Send to Kafka Producer]
+F -->|Yes| E
+
+subgraph Cache
+D --> H{Cache Success?}
+H -->|No| E[Log Error]
+H -->|Yes| I{Cache Complete}
+end
