@@ -1,0 +1,104 @@
+Full Code Example with Pushgateway Integration
+This example demonstrates how to push metrics to a Pushgateway every minute using Micrometer and the Prometheus Pushgateway client library:
+
+1. Dependencies (pom.xml):
+
+XML
+<dependencies>
+  <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+    <version>...</version>
+  </dependency>
+  <dependency>
+    <groupId>io.micrometer</groupId>
+    <artifactId>micrometer-core</artifactId>
+    <version>...</version>
+  </dependency>
+  <dependency>
+    <groupId>io.prometheus</groupId>
+    <artifactId>simpleclient_pushgateway</artifactId>
+    <version>0.15.0</version>
+  </dependency>
+</dependencies>
+Use code with caution.
+2. Pushgateway Configuration (PushGatewayConfig.java):
+
+Java
+@Configuration
+public class PushGatewayConfig {
+
+  @Value("${pushgateway.url}")
+  private String pushGatewayUrl;
+
+  public String getPushGatewayUrl() {
+    return pushGatewayUrl;
+  }
+}
+Use code with caution.
+3. Pushgateway Service (PushGatewayService.java):
+
+Java
+@Service
+public class PushGatewayService {
+
+  @Autowired
+  private PushGateway pushGateway;
+
+  public void pushMetrics(MeterRegistry registry, String jobName) {
+    try {
+      pushGateway.pushAdd(registry, jobName);
+    } catch (Exception e) {
+      // Handle exception (e.g., log error)
+      e.printStackTrace();
+    }
+  }
+}
+Use code with caution.
+4. Metric Recording Service (MetricRecordingService.java):
+
+Java
+@Service
+public class MetricRecordingService {
+
+  @Autowired
+  private MeterRegistry registry;
+
+  @Autowired
+  private PushGatewayService pushGatewayService;
+
+  @Scheduled(fixedRate = 60000) // Runs every 60 seconds (1 minute)
+  public void recordAndPushMetrics() {
+    // Your logic to record metrics using Micrometer (e.g., counter.increment())
+    // ...
+
+    pushGatewayService.pushMetrics(registry, "my-application"); // Replace with your application name
+  }
+}
+Use code with caution.
+5. Application Class (CctiApplicationmetricsApplication.java):
+
+Java
+@SpringBootApplication
+public class CctiApplicationmetricsApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(CctiApplicationmetricsApplication.class, args);
+  }
+}
+Use code with caution.
+Explanation:
+
+PushGatewayConfig: Holds the Pushgateway URL as a configuration property.
+PushGatewayService: Provides a method to push metrics from the MeterRegistry to the Pushgateway with error handling.
+MetricRecordingService: Records metrics using Micrometer and schedules a job to push them to the Pushgateway every minute.
+CctiApplicationmetricsApplication: Main application class.
+Configuration:
+
+Set the pushgateway.url property in your application properties file (e.g., application.properties).
+Remember to:
+
+Replace placeholders with your actual values (Pushgateway URL, application name).
+Adapt the code snippets to your existing project structure and class names.
+Implement your specific logic for recording metrics using Micrometer within the recordAndPushMetrics method.
+This example provides a basic structure to push metrics to Pushgateway. You can extend it further to handle different types of metrics and scheduling configurations.
