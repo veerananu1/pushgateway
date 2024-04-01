@@ -1,0 +1,34 @@
+import time
+import requests
+
+PROMETHEUS_PUSHGATEWAY_URL = "http://localhost:9091"  # Change this to your Pushgateway URL
+
+def delete_metrics_by_job(job_name):
+    # Fetch metrics for the specific job
+    response = requests.get(f"{PROMETHEUS_PUSHGATEWAY_URL}/metrics/job/{job_name}")
+
+    if response.status_code == 200:
+        metrics = response.text.split("\n")
+        for metric in metrics:
+            # Check the timestamp of the last push for each metric
+            last_push_timestamp_str = metric.split("{", 1)[0].split()[-1]
+            last_push_timestamp = int(last_push_timestamp_str)
+            current_timestamp = int(time.time())
+            if current_timestamp - last_push_timestamp > 300:  # 5 minutes = 300 seconds
+                # Delete the metric
+                response_delete = requests.delete(f"{PROMETHEUS_PUSHGATEWAY_URL}/metrics/job/{job_name}")
+                if response_delete.status_code == 202:
+                    print(f"Metric deleted for job '{job_name}'")
+                else:
+                    print(f"Failed to delete metric for job '{job_name}'")
+                    print(f"Status code: {response_delete.status_code}")
+            else:
+                print(f"Last push for metric in job '{job_name}' is within the 5-minute threshold")
+
+    else:
+        print(f"Failed to fetch metrics for job '{job_name}'")
+        print(f"Status code: {response.status_code}")
+
+if __name__ == "__main__":
+    job_name = input("Enter the job name for which you want to delete metrics: ")
+    delete_metrics_by_job(job_name)
