@@ -1,0 +1,19 @@
+import time
+import requests
+
+PROMETHEUS_PUSHGATEWAY_URL = "http://localhost:9091"  # Change this to your Pushgateway URL
+
+def print_metrics_by_job(job_name):
+    # Fetch metrics for the specific job
+    response = requests.get(f"{PROMETHEUS_PUSHGATEWAY_URL}/metrics/job/{job_name}", verify=False)
+
+    if response.status_code == 200:
+        print(f"Metrics for job '{job_name}':")
+        print(response.text)
+    else:
+        print(f"Failed to fetch metrics for job '{job_name}'")
+        print(f"Status code: {response.status_code}")
+
+if __name__ == "__main__":
+    job_name = input("Enter the job name for which you want to print metrics: ")
+    print_metrics_by_job(job_name)
