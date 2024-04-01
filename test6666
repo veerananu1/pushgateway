@@ -1,0 +1,47 @@
+import requests
+import time
+import re
+
+# Define base URL and deletion endpoint
+base_url = "http://localhost:9091"
+delete_endpoint = "/metrics/job/"
+
+def get_metrics():
+  """Fetches all metrics from the Prometheus server."""
+  response = requests.get(f"{base_url}/metrics")
+  return response.text
+
+def parse_job_metrics(metrics_data):
+  """Parses metrics data to extract job name and last push time."""
+  for line in metrics_data.splitlines():
+    if not line.startswith("#") and "push_time_seconds" in line:
+      # Extract job name and last push time
+      job_name = re.search(r"job=([^,]+)", line).group(1)
+      last_pushed = float(re.search(r"\s+([0-9.]+)", line).group(1))
+      yield job_name, last_pushed
+
+def delete_old_job(job_name):
+  """Deletes a job group if it hasn't been updated in over 15 seconds."""
+  current_time = time.time()
+  interval_seconds = current_time - last_pushed
+  if interval_seconds > 15:
+    delete_url = f"{base_url}{delete_endpoint}{job_name}"
+    response = requests.delete(delete_url)
+    if response.status_code == 200:
+      print(f"{time.ctime()}, Deleted job group - {job_name}")
+    else:
+      print(f"Error deleting job {job_name}: {response.text}")
+  else:
+    print(f"{time.ctime()}, Purge action skipped. Interval not satisfied")
+
+if __name__ == "__main__":
+  while True:
+    # Fetch metrics
+    metrics_data = get_metrics()
+    
+    # Parse metrics for each job
+    for job_name, last_pushed in parse_job_metrics(metrics_data):
+      delete_old_job(job_name)
+    
+    # Sleep for 1 hour
+    time.sleep(3600)
