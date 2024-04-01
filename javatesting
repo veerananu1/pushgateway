@@ -1,0 +1,15 @@
+. Exclude Logback from the Conflicting Library (Recommended):
+
+If you have control over the jaeger-thrift-0.30.2.jar library (or its dependencies), the most recommended solution is to exclude the Logback dependency from it. This ensures that jaeger-thrift doesn't introduce its own SLF4J binding, preventing conflicts.
+
+The specific steps for exclusion will vary depending on your build system (Maven, Gradle, etc.). However, you'll typically need to use dependency exclusion rules within your project's configuration file. Consult your build system's documentation for precise instructions.
+2. Force Logback Binding (Alternative):
+
+If excluding Logback from the conflicting library isn't feasible, you can try forcing the use of Logback's SLF4J binding at runtime. This approach might not be ideal in all scenarios, as it could potentially mask issues with other libraries that might rely on a different SLF4J implementation.
+
+To force Logback binding, you can set the slf4j.impl system property to the fully qualified classname of Logback's SLF4J binding:
+
+Java
+System.setProperty("slf4j.impl", "ch.qos.logback.classic.jul.JULBinding");
+Use code with caution.
+Make sure you set this property before any other libraries that might use SLF4J are loaded in your application.
