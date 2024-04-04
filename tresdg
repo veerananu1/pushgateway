@@ -1,0 +1,18 @@
+import re
+
+def parse_job_metrics(metrics_data, base_uri):
+  for line in metrics_data.splitlines():
+    if not line.startswith("#") and "push_time_seconds" in line:
+      # Extract push time
+      push_time_scientific = re.search(r"push_time_seconds ([0-9.e+]+)", line).group(1)
+      push_time_standard = float(push_time_scientific)
+
+      # Extract labels (key-value pairs)
+      labels = re.findall(r"{([^\}]+)}", line)  # Capture content within curly braces
+      if labels:
+        labels = labels[0].split(",")  # Split comma-separated key-value pairs
+        label_pairs = [f"{key}={value}" for key, value in (pair.strip().split("=") for pair in labels)]  # Clean and format
+
+        # Build URI with labels
+        uri = f"{base_uri}/push_time_seconds{{{','.join(label_pairs)}}}"
+        yield uri
