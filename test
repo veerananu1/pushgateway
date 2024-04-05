@@ -1,0 +1,33 @@
+def parse_job_metrics(metrics_data):
+    labels = {}  # Initialize an empty dictionary to store labels
+
+    for line in metrics_data.splitlines():
+        if not line.startswith("#") and "push_time_seconds" in line:
+            # Extract push time
+            push_time_scientific = re.search(r"push_time_seconds ([0-9.e+]+)", line).group(1)
+            push_time_standard = float(push_time_scientific)
+
+            # Identify potential labels (keys before comma)
+            potential_labels = re.findall(r"([^,]+)=.+", line)[:-1]  # Exclude push_time_seconds
+
+            # Store labels in the dictionary
+            for label in potential_labels:
+                key, value = label.split("=")
+                labels[key] = value
+
+            # Construct URI for deleting metrics (use labels as needed)
+            # Example: uri = f"https://your-prometheus-server/api/v1/delete?job={labels['job']}"
+
+            # Yield push time and labels (if needed)
+            yield push_time_standard, labels
+
+# Example usage
+metrics_data = """
+# Some comments
+push_time_seconds 123.45, job=my_job, instance=example.com
+# More metrics data...
+"""
+
+for push_time, labels in parse_job_metrics(metrics_data):
+    print(f"Push time: {push_time} seconds")
+    print(f"Labels: {labels}")
