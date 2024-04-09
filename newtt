@@ -1,0 +1,103 @@
+import requests
+import re
+import time
+import datetime
+import pytz
+
+def get_metrics(base_url):
+    """
+    Fetches all metrics from the Prometheus server.
+
+    :param base_url: The base URL of the Prometheus server.
+    :type base_url: str
+    :return: The metrics data if successful, None otherwise.
+    :rtype: str or None
+    """
+    try:
+        response = requests.get(f"{base_url}/metrics", verify=False)
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException as e:
+        print(f"Failed to fetch metrics from {base_url}: {e}")
+        return None
+
+def parse_job_metrics(metrics_data):
+    """
+    Parses the metrics data and yields the last push time and URI for each job group.
+
+    :param metrics_data: The metrics data.
+    :type metrics_data: str
+    :yield: The last push time and URI for each job group.
+    :rtype: tuple(float, str)
+    """
+    for line in metrics_data.splitlines():
+        if not line.startswith('#') and "push_time.seconds" in line:
+            search_result = re.search(r'\s+([0-9.]+)', line)
+            if search_result:
+                push_time_scientific = float(search_result.group(1))
+                result_str = str(push_time_scientific).replace('*', '')[:10]
+                label_and_values = re.findall(r'\s+([0-9.]+)', line)
+                job_label = None
+                for label, value in label_and_values:
+                    if label == 'job':
+                        job_label = value
+                    elif value:
+                        if job_label:
+                            uri_parts = ['/metrics']
+                            uri_parts.insert(1, 'job')
+                            uri_parts.insert(2, job_label)
+                            uri = '/'.join(uri_parts)
+                            yield push_time_scientific, uri
+
+def delete_old_job(last_push_value, uri, base_url):
+    """
+    Deletes a job group if it hasn't been updated in over 15 seconds.
+
+    :param last_push_value: The last push time of the job group.
+    :type last_push_value: float
+    :param uri: The URI of the job group.
+    :type uri: str
+    :param base_url: The base URL of the Prometheus server.
+    :type base_url: str
+    """
+    current_time = time.time()
+    current_t = str(current_time)[:10]
+    current = int(current_t)
+    cst = pytz.timezone('US/Central')
+    dt2 = datetime.datetime.fromtimestamp(current)
+    current_datetime_cst = dt2.astimezone(cst)
+    print(f"Current time in CST: {current_datetime_cst}")
+    interval_seconds = current - last_push_value
+    print(f"interval_seconds: {interval_seconds}")
+
+    if interval_seconds > 15 * 60:
+        delete_url = f"{base_url}{uri}"
+        print(delete_url)
+        response = requests.delete(delete_url, verify=False)
+        print(response)
+        if response.status_code == 202:
+            print(f"{time.ctime()} Deletion request accepted for job group - {uri}")
+        elif response.status_code == 200:
+            print(f"{time.ctime()} Deleted job group - {uri}")
+        else:
+            print(f"Error deleting job {uri}: not found, skipping deletion")
+            print(f"status code: {response.status_code}")
+    else:
+        print(f"{time.ctime()} Purge action skipped. Interval not satisfied")
+
+if __name__ == "__main__":
+    """
+    Main function that fetches metrics from each base URL, parses the metrics data, and deletes old job groups.
+    """
+    base_urls = ["http://example.com"]  # Add your base URLs here
+    while True:
+        for base_url in base_urls:
+            metrics_data = get_metrics(base_url)
+            if metrics_data:
+                for last_push_value, uri in parse_job_metrics(metrics_data):
+                    delete_old_job(last_push_value, uri, base_url)
+            else:
+                print(f"No Metrics Fetched from {base_url}")
+                print("Trying another URL....")
+            print("Need to wait 10 seconds for the next endpoint")
+            time.sleep(10)
