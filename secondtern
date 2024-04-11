@@ -1,0 +1,59 @@
+import unittest
+from unittest.mock import patch, MagicMock
+from datetime import datetime, timedelta
+from io import StringIO
+import sys
+import os
+
+# Import functions to be tested
+from your_script_file_name import get_metrics, parse_job_metrics, delete_job, get_current_time_cst
+
+class TestYourCode(unittest.TestCase):
+    @patch('requests.get')
+    def test_get_metrics(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.text = "mock metrics data"
+        mock_get.return_value = mock_response
+
+        base_url = "http://example.com"
+        result = get_metrics(base_url)
+
+        self.assertEqual(result, "mock metrics data")
+        mock_get.assert_called_once_with(f"{base_url}/metrics", verify=False, timeout=10)
+
+    def test_parse_job_metrics(self):
+        metrics_data = """# HELP metric_name Some metric
+        # TYPE metric_name gauge
+        metric_name{label1="value1",label2="value2"} 1234567890"""
+
+        expected_result = [(1234567890, 'metric_name/label1=value1/label2=value2', 'metric_name/label1/value1/label2/value2')]
+        result = list(parse_job_metrics(metrics_data))
+
+        self.assertEqual(result, expected_result)
+
+    @patch('requests.delete')
+    @patch('time.time')
+    @patch('your_script_file_name.get_current_time_cst')
+    def test_delete_job(self, mock_get_current_time_cst, mock_time, mock_delete):
+        mock_get_current_time_cst.return_value = datetime(2024, 4, 11, 12, 0, 0)
+        mock_time.return_value = 1234567890
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_delete.return_value = mock_response
+
+        uri = "/job/uri"
+        delete_job(uri)
+
+        mock_delete.assert_called_once_with(f"{os.environ['CCT_PUSHGATE_URL']}{uri}", verify=False)
+        mock_get_current_time_cst.assert_called_once()
+        mock_time.assert_called_once()
+
+    def test_get_current_time_cst(self):
+        with patch('your_script_file_name.pytz.timezone') as mock_timezone:
+            mock_timezone.return_value = MagicMock()
+            mock_timezone().localize.return_value = datetime(2024, 4, 11, 12, 0, 0)
+            result = get_current_time_cst()
+            self.assertEqual(result, datetime(2024, 4, 11, 12, 0, 0))
+
+if __name__ == '__main__':
+    unittest.main()
