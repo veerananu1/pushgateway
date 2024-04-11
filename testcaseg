@@ -1,0 +1,79 @@
+import unittest
+from unittest.mock import patch, MagicMock
+from your_script_name import (  # Replace with the actual script name
+    get_current_time_cst, get_metrics, parse_job_metrics, delete_job
+)
+
+# Sample Prometheus data with a job entry
+SAMPLE_METRICS_DATA = """
+# HELP push_time_seconds How many seconds have passed since the last push.
+push_time_seconds{job="my_job"} 10
+"""
+
+# Sample Prometheus data with no job entries
+SAMPLE_METRICS_NO_DATA = "# HELP some_metric Some metric description"
+
+
+class TestScriptFunctions(unittest.TestCase):
+
+    @patch('your_script_name.time.time')  # Patch time.time() for predictable timestamps
+    def test_get_current_time_cst(self, mock_time):
+        mock_time.return_value = 1654783200  # Set a fixed epoch time
+        cst_time = get_current_time_cst()
+        self.assertIsInstance(cst_time, datetime.datetime)
+        self.assertEqual(cst_time.tzname(), 'US/Central')
+
+    @patch('requests.get')
+    def test_get_metrics_success(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.text = SAMPLE_METRICS_DATA
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+        metrics = get_metrics("http://localhost:9090")
+        self.assertEqual(metrics, SAMPLE_METRICS_DATA)
+
+    @patch('requests.get')
+    def test_get_metrics_failure(self, mock_get):
+        mock_get.return_value = None
+        metrics = get_metrics("http://localhost:9090")
+        self.assertIsNone(metrics)
+
+    @patch('re.findall')
+    def test_parse_job_metrics_success(self, mock_findall):
+        mock_findall.side_effect = [
+            [("job", "my_job"), ("push_time_seconds", "10")],
+        ]
+        metrics_data = SAMPLE_METRICS_DATA
+        for last_push, uri_no_value, uri_with_value in parse_job_metrics(metrics_data):
+            self.assertEqual(last_push, 10)
+            self.assertEqual(uri_no_value, "")
+            self.assertEqual(uri_with_value, "/metrics/job/my_job")
+
+    @patch('re.findall')
+    def test_parse_job_metrics_no_data(self, mock_findall):
+        mock_findall.return_value = []
+        metrics_data = SAMPLE_METRICS_NO_DATA
+        generator = parse_job_metrics(metrics_data)
+        # Test iterator exhaustion
+        with self.assertRaises(StopIteration):
+            next(generator)
+
+    @patch('requests.delete')
+    def test_delete_job_success(self, mock_delete):
+        mock_response = MagicMock()
+        mock_response.status_code = 202
+        mock_delete.return_value = mock_response
+        delete_job("http://localhost:9090/metrics/job/my_job")
+        # No assertion needed, just verify the call with expected URL
+
+    @patch('requests.delete')
+    def test_delete_job_error(self, mock_delete):
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_delete.return_value = mock_response
+        delete_job("http://localhost:9090/metrics/job/my_job")
+        # No assertion needed, just verify the call with expected URL and error handling
+
+
+if __name__ == '__main__':
+    unittest.main()
