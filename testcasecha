@@ -1,0 +1,36 @@
+import unittest
+from unittest.mock import patch, MagicMock
+from your_script_name import *
+
+class TestYourScript(unittest.TestCase):
+    @patch('builtins.print')
+    def test_get_current_time_cst(self, mocked_print):
+        # Test get_current_time_cst function
+        # Mock the time module to control the current time
+        with patch('your_script_name.time.time') as mocked_time:
+            # Set a fixed time for the test
+            mocked_time.return_value = 1616538000  # A fixed timestamp
+            # Call the function
+            result = get_current_time_cst()
+            # Assert that the expected CST time is returned
+            self.assertEqual(result, datetime.datetime(2021, 3, 23, 15, 0, tzinfo=pytz.timezone('US/Central')))
+            # Ensure print is called with the error message if an exception occurs
+            mocked_print.assert_not_called()
+
+    @patch('your_script_name.requests.get')
+    def test_get_metrics(self, mocked_get):
+        # Test get_metrics function
+        mocked_response = MagicMock()
+        mocked_response.text = "mocked metrics data"
+        mocked_get.return_value = mocked_response
+
+        base_url = "http://example.com"
+        result = get_metrics(base_url)
+
+        mocked_get.assert_called_once_with(f"{base_url}/metrics", verify=False, timeout=10)
+        self.assertEqual(result, "mocked metrics data")
+
+    # Similarly, you can write tests for other functions like parse_job_metrics and delete_job.
+
+if __name__ == '__main__':
+    unittest.main()
