@@ -1,0 +1,141 @@
+# Imports
+from urllib.request import urlopen
+import requests
+requests.packages.urllib3.disable_warnings()
+import time
+import re
+import datetime
+import pytz
+import logging
+import os
+
+# Environment variable access
+url_env = os.environ.get('CCT_PUSHGATE_URL')
+base_urls = url_env.split(',') if url_env else []
+print(base_urls)
+
+sleep_each_endpoint = int(os.environ.get('SLEEP_EACH_ENDPOINT') or 5)
+sleep_each_run = int(os.environ.get('SLEEP_EACH_RUN') or 180)
+threshold_metric_del = int(os.environ.get('THRESHOLD_METRIC_DEL') or 15)
+
+
+def get_current_time_cst():
+    """
+    Function to get current time in CST timezone
+
+    :return: Current time in CST timezone
+    :rtype: datetime
+    """
+    try:
+        current_time = time.time()
+        cst = pytz.timezone('US/Central')
+        date_time = datetime.datetime.fromtimestamp(current_time)
+        return date_time.astimezone(cst)
+    except Exception as e:
+        print(f"Error in get_current_time_cst: {e}")
+        return None
+
+
+def get_metrics(base_url):
+    """
+    Function to fetch metrics from Prometheus server
+
+    :param base_url: URL of the Prometheus server
+    :type base_url: str
+    :return: Text response from the server
+    :rtype: str
+    """
+    timeout_seconds = 10
+    try:
+        response = requests.get(f"{base_url}/metrics", verify=False, timeout=timeout_seconds)
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException as e:
+        print(f"Failed to fetch metrics from {base_url}: {e}")
+        return None
+
+
+def parse_job_metrics(metrics_data):
+    """
+    Function to parse job metrics and construct URIs
+
+    :param metrics_data: Metrics data from the Prometheus server
+    :type metrics_data: str
+    :yield: Last push value, combined URI, URI with value
+    :rtype: int, str, str
+    """
+    last_push_value = None
+    try:
+        for line in metrics_data.splitlines():
+            if not line.startswith("#") and "push_time_seconds" in line:
+                push_time_epoch_scientific = float(re.search(r"\s+([0-9. ]+)", line).group(1))
+                epoch_timestamp = str(push_time_epoch_scientific).replace(".", "")[:10]
+                last_push_value = int(epoch_timestamp)
+
+                label_and_job_label = None
+                label_without_values = []
+                uri_parts_with_values = ['/metrics']
+                for label, value in re.findall(r'(\w+)="([^"]*)"', line):
+                    if label == 'job':
+                        job_label = value
+                    elif value == "":
+                        if job_label:
+                            label_without_values.append(label)
+                            uri_parts_with_values.append(job_label)
+                    for label, value in re.findall(r'(\w+)="([^"]*)"', line):
+                        if label == 'job' and value:
+                            uri_parts_with_values.extend([label, value])
+                uri_with_value = '/'.join(uri_parts_with_values)
+                uri_parts_without_values = '/'.join(label_without_values)
+                print(f"With values labels: {uri_with_value}")
+                print(f"Without values labels: {uri_parts_without_values}")
+                uri_combined = uri_with_value + '/' + uri_parts_without_values
+                yield last_push_value, uri_combined, uri_with_value
+    except Exception as e:
+        yield last_push_value, None, None
+        print(f"Error in parse metrics and construct uri: {e}")
+
+
+def delete_job(uri):
+    """
+    Function to delete a job group
+
+    :param uri: URI of the job group to be deleted
+    :type uri: str
+    """
+    try:
+        delete_url = f"{base_url}{uri}"
+        current_datetime_cst = get_current_time_cst()
+        response = requests.delete(delete_url, verify=False)
+        # Nosec warning ignored for clarity
+        print(f"Delete Job response code: {response}")
+        if response.status_code == 202:
+            print(f"{current_datetime_cst}, Deletion request accepted for job group - {uri}")
+        elif response.status_code == 200:
+            print(f"{time.ctime()} Deletion request accepted for job group - {uri}")
+        elif response.status_code == 200:
+            print(f"{time.ctime()} Deleted job group - {uri}")
+        else:
+            print(f"Error deleting job {uri}: not found, skipping deletion")
+            print(f"status code: {response.status_code}")
+
+
+if __name__ == "__main__":
+    while True:
+        # Fetch metrics for each base URL
+        for base_url in base_urls:
+            print(f"Processing URL: {base_url}")
+            metrics_data = get_metrics(base_url)
+
+            if metrics_data:
+                for last_push_value, uri_no_value, uri_with_value in parse_job_metrics(metrics_data):
+                    delete_old_job(last_push_value, uri_no_value, uri_with_value)
+            else:
+                print(f"No Metrics Fetched from {base_url}")
+                logging.info("Trying another url....")
+                continue
+
+        print(f"Need to wait {sleep_each_endpoint} seconds for next endpoint...")
+        time.sleep(sleep_each_endpoint)
+    print(f"Need to wait {sleep_each_run} minutes for next run...")
+    time.sleep(sleep_each_run)
