@@ -1,0 +1,30 @@
+import unittest
+from unittest.mock import patch
+import datetime
+import pytz
+import requests
+
+# Assuming your functions are in a file named 'main.py'
+from main import get_current_time_cst, get_metrics
+
+class TestMain(unittest.TestCase):
+
+    def test_get_current_time_cst(self):
+        cst_time = get_current_time_cst()
+        self.assertIsNotNone(cst_time, "Time should not be None")
+        self.assertEqual(cst_time.tzinfo, pytz.timezone('US/Central'), "Timezone should be CST")
+
+    @patch('requests.get')
+    def test_get_metrics(self, mock_get):
+        mock_response = mock_get.return_value
+        mock_response.raise_for_status.return_value = None
+        mock_response.text = 'test metrics'
+
+        base_url = 'http://localhost:9090'
+        metrics = get_metrics(base_url)
+
+        self.assertIsNotNone(metrics, "Metrics should not be None")
+        self.assertEqual(metrics, 'test metrics', "Metrics should match the mocked response")
+
+if __name__ == '__main__':
+    unittest.main()
