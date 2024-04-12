@@ -1,0 +1,67 @@
+import pytest
+from unittest.mock import patch  # Used to mock external calls
+
+# Patch the get_current_time_cst function to avoid real time dependency
+@patch('script_name.get_current_time_cst')  # Replace 'script_name' with actual script name
+def test_get_current_time_cst_success(mock_get_current_time_cst):
+  """Tests successful retrieval of current time in CST"""
+  mock_get_current_time_cst.return_value = datetime.datetime(2024, 4, 12)  # Set a fixed return value
+  assert script_name.get_current_time_cst() == datetime.datetime(2024, 4, 12)  # Replace 'script_name' with actual script name
+
+# Patch the requests.get function to mock API calls
+@patch('requests.get')
+def test_get_metrics_success(mock_get):
+  """Tests successful retrieval of metrics"""
+  mock_get.return_value = Mock(text="sample_metrics_data", status_code=200)
+  assert script_name.get_metrics("https://example.com") == "sample_metrics_data"  # Replace 'script_name' with actual script name
+
+# Test exception handling in get_metrics
+@patch('requests.get')
+def test_get_metrics_failure(mock_get):
+  """Tests exception handling during metrics retrieval"""
+  mock_get.side_effect = requests.exceptions.RequestException("Mocked exception")
+  assert script_name.get_metrics("https://example.com") is None  # Replace 'script_name' with actual script name
+
+# Test logic inside parse_job_metrics with mocked data
+def test_parse_job_metrics_success():
+  """Tests successful parsing of job metrics"""
+  metrics_data = """
+# HELP push_time_seconds Time of the last push
+job="test_job" push_time_seconds=1654803600
+"""
+  expected_result = [(1654803600, "/metrics/job/test_job", "/metrics/test_job")]
+  result = list(script_name.parse_job_metrics(metrics_data))  # Replace 'script_name' with actual script name
+  assert result == expected_result
+
+# Test empty metrics data in parse_job_metrics
+def test_parse_job_metrics_empty():
+  """Tests parsing of empty metrics data"""
+  metrics_data = ""
+  result = list(script_name.parse_job_metrics(metrics_data))
+  assert result == []
+
+# Patch the requests.delete function to mock delete request
+@patch('requests.delete')
+def test_delete_job_success(mock_delete):
+  """Tests successful deletion of a job group"""
+  mock_delete.return_value = Mock(status_code=202)
+  script_name.delete_job("/metrics/job/test_job", "https://base_url")  # Replace 'script_name' with actual script name
+  assert mock_delete.called
+
+# Test handling of different status codes in delete_job
+@patch('requests.delete')
+def test_delete_job_status_codes(mock_delete):
+  """Tests handling of different status codes during job deletion"""
+  test_data = [
+      (200, "Deleted job group - /metrics/job/test_job"),
+      (404, f"Error deleting job /metrics/job/test_job: "),  # Mocked exception message
+  ]
+  for status_code, expected_print in test_data:
+    mock_delete.return_value = Mock(status_code=status_code)
+    script_name.delete_job("/metrics/job/test_job", "https://base_url")  # Replace 'script_name' with actual script name
+    assert mock_delete.called
+    assert expected_print in capsys.readouter.출력  # Replace 'capsys' with appropriate fixture for capturing output
+
+#  Assuming the script name is 'main' (replace if different)
+if __name__ == "__main__":
+  pytest.main()
