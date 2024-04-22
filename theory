@@ -1,0 +1,11 @@
+
+The FlushGateway application checks the last push value for each group of metrics. If the last push value is greater than 5 minutes, indicating no metric has been pushed in that timeframe, the corresponding metric group is deleted. This check occurs every 30 seconds.
+
+When deleting a metric group, the job label needs to be specified before deleting. If any label value is not sent (e.g., instance=""), it should be appended to the end of the URL.
+
+To add a new PushGateway URL:
+
+Access OpenShift and navigate to the desired namespace.
+Go to the networking section and select the service related to your application.
+Copy the service name (until "svc") and append the port number to it.
+Add the new URL to the environment file, separating it with commas.
