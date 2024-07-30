@@ -1,0 +1,9 @@
+metric_name="my_metric"
+value=123.45
+timestamp=$(date +%s)  # Get current timestamp in seconds
+labels="env:production,region:us-west"
+
+curl -X POST \
+  'http://your_victoria_metrics_host:8428/api/v1/write' \
+  -H 'Content-Type: text/plain' \
+  -d "${metric_name}{$(echo ,$labels | sed 's/=\([^,]*\)/=\"\1\"/g')}" "${value} ${timestamp}"
