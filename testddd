@@ -1,0 +1,33 @@
+import requests
+
+def push_metric(metric_name, value, timestamp, labels={}):
+    """
+    Pushes a metric to VictoriaMetrics.
+
+    Args:
+        metric_name (str): The name of the metric.
+        value (float): The value of the metric.
+        timestamp (int): The timestamp of the metric (Unix timestamp).
+        labels (dict, optional): Additional labels for the metric. Defaults to {}.
+    """
+
+    url = "http://your_victoria_metrics_host:8428/api/v1/write"
+    data = f"{metric_name}{labels} {value} {timestamp}\n"
+    headers = {'Content-Type': 'text/plain'}
+
+    try:
+        response = requests.post(url, data=data, headers=headers)
+        response.raise_for_status()  # Raise an exception for non-200 status codes
+    except requests.exceptions.RequestException as e:
+        print(f"Error   
+ pushing metric: {e}")
+    else:
+        print("Metric pushed successfully")
+
+# Example usage:
+metric_name = "my_metric"
+value = 123.45
+timestamp = int(time.time())
+labels = {"env": "production", "region": "us-west"}
+
+push_metric(metric_name, value, timestamp, labels)
