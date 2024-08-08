@@ -1,0 +1,25 @@
+# Define the base YAML snippet
+$yamlSnippetBase = @"
+scenarios:
+  my-req:
+    requests:
+    - url: http://blazedemo.com/  # url to hit
+      method: GET  # request method (GET, POST, PUT, DELETE)
+      label: homepage  # sampler label
+"@
+
+# Number of copies to create
+$numberOfCopies = 5
+
+# Create a new file or overwrite if it exists
+$outputFile = "C:\path\to\your\outputfile.txt"
+New-Item -Path $outputFile -ItemType File -Force
+
+# Write the YAML snippet multiple times to the file with unique identifiers
+for ($i = 1; $i -le $numberOfCopies; $i++) {
+    $yamlSnippet = $yamlSnippetBase -replace "my-req", "my-req$i"
+    Add-Content -Path $outputFile -Value $yamlSnippet
+}
+
+# Open the file in Notepad
+Start-Process notepad.exe $outputFile
