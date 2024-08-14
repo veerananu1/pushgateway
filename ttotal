@@ -1,0 +1,95 @@
+{
+  "trigger": {
+    "schedule": {
+      "interval": "1m"
+    }
+  },
+  "input": {
+    "search": {
+      "request": {
+        "indices": ["your_index"],
+        "body": {
+          "query": {
+            "bool": {
+              "should": [
+                { "query_string": { "query": "message:cucej AND message:data" } },
+                { "query_string": { "query": "data:uhgt AND message:dbfailure" } },
+                { "query_string": { "query": "message:failuredatabase AND colo:tgc" } }
+              ]
+            }
+          },
+          "aggs": {
+            "60m_buckets": {
+              "date_histogram": {
+                "field": "@timestamp",
+                "interval": "60m"
+              },
+              "aggs": {
+                "total_count": {
+                  "filter": {
+                    "bool": {
+                      "should": [
+                        { "query_string": { "query": "message:cucej AND message:data" } }
+                      ]
+                    }
+                  }
+                },
+                "failure_count": {
+                  "filter": {
+                    "bool": {
+                      "should": [
+                        { "query_string": { "query": "data:uhgt AND message:dbfailure" } },
+                        { "query_string": { "query": "message:failuredatabase AND colo:tgc" } }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "30m_buckets": {
+              "date_histogram": {
+                "field": "@timestamp",
+                "interval": "30m"
+              },
+              "aggs": {
+                "total_count": {
+                  "filter": {
+                    "bool": {
+                      "should": [
+                        { "query_string": { "query": "message:cucej AND message:data" } }
+                      ]
+                    }
+                  }
+                },
+                "failure_count": {
+                  "filter": {
+                    "bool": {
+                      "should": [
+                        { "query_string": { "query": "data:uhgt AND message:dbfailure" } },
+                        { "query_string": { "query": "message:failuredatabase AND colo:tgc" } }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "condition": {
+    "script": {
+      "source": "return (ctx.payload.aggregations['60m_buckets'].buckets.any { bucket -> bucket.failure_count.doc_count / bucket.total_count.doc_count > 0.03 }) || (ctx.payload.aggregations['30m_buckets'].buckets.any { bucket -> bucket.failure_count.doc_count / bucket.total_count.doc_count > 0.03 })"
+    }
+  },
+  "actions": {
+    "send_email": {
+      "email": {
+        "to": "your_email@example.com",
+        "subject": "Failure Rate Alert",
+        "body": "The failure rate has exceeded 3%."
+      }
+    }
+  }
+}
