@@ -1,0 +1,58 @@
+{
+  "aggs": {
+    "60m_buckets": {
+      "date_histogram": {
+        "field": "@timestamp",
+        "interval": "60m"
+      },
+      "aggs": {
+        "total_count": {
+          "filter": {
+            "bool": {
+              "should": [
+                { "query_string": { "query": "message:cucej AND message:data" } }
+              ]
+            }
+          }
+        },
+        "failure_count": {
+          "filter": {
+            "bool": {
+              "should": [
+                { "query_string": { "query": "data:uhgt AND message:dbfailure" } },
+                { "query_string": { "query": "message:failuredatabase AND colo:tgc" } }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "30m_buckets": {
+      "date_histogram": {
+        "field": "@timestamp",
+        "interval": "30m"
+      },
+      "aggs": {
+        "total_count": {
+          "filter": {
+            "bool": {
+              "should": [
+                { "query_string": { "query": "message:cucej AND message:data" } }
+              ]
+            }
+          }
+        },
+        "failure_count": {
+          "filter": {
+            "bool": {
+              "should": [
+                { "query_string": { "query": "data:uhgt AND message:dbfailure" } },
+                { "query_string": { "query": "message:failuredatabase AND colo:tgc" } }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
